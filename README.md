@@ -18,6 +18,9 @@ If not specified, default value for -t : localhost
 
 If not specified, default value for -p : 8080
 
+For KERBEROS service check, script will prompt for an option to skip service check.
+You may skip the check for KERBEROS if you do not have KDC Admin principal and password.
+
 If executing this script on Ambari Server host, you do not need to specify -t and -p options
 
 * Example: Trigger Service Check for all components
