@@ -28,4 +28,6 @@ If executing this script on Ambari Server host, you do not need to specify -t an
 
   * sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox
 
+If you have a Kerberized Cluster, then to run service check for KERBEROS, the script may request KDC Admin principal and Password.
+Before it prompts for credentials, it provides an option to skip kerberos service check.
 
