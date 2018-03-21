@@ -13,8 +13,6 @@ sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox
 " 1>&2; exit 1; 
 }
 
-($1="") || usage
-
 while getopts "u:p:t::n::c::s:" opt; do
     case "${opt}" in
         u)
