@@ -10,7 +10,7 @@ It can be used with following arguments:
 * -s <all|comma-separated list> 
 
 Optional arguments:
-* \[-t \<ambariServerHost>] 
+* \[-t \<ambariServerHost or IP Address>] 
 * \[-n \<ambariServerPort>] 
 * \[-c \<clusterName>]
   
