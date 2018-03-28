@@ -1,9 +1,11 @@
 usage() {
 echo "
 This script triggers service checks for components which are not in maintenance mode
-Usage: sh ambari-service-check.sh -u <user> -p <password> -s <all|comma-separated list> [-t <ambariServerHost>] [-n <ambariServerPort>] [-c <empty | path to PEM file>] \n
+Usage: sh ambari-service-check.sh -u <user> -p <password> -s <all|comma-separated list> [-t <ambariServerHost>] [-n <ambariServerPort>] [-c <empty | path to cert file>] \n
 If not specified, default value for -t : localhost
 If not specified, default value for -p : 8080(when SSL disabled) and 8443(when SSL enabled)
+
+Mention -c at the end of the command as shown in the examples
 
 Example: Trigger Service Check for all components which are not in Maintenance Mode
 sh ambari-service-check.sh -u admin -p admin -s all

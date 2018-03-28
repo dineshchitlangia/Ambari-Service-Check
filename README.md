@@ -12,8 +12,13 @@ It can be used with following arguments:
 Optional arguments:
 * \[-t \<ambariServerHost or IP Address>] 
 * \[-n \<ambariServerPort>] 
-* \[-c \<empty or path to PEM file>] to be used when Ambari SSL is enabled
-  
+* \[-c \<empty or path to cert file>] to be used when Ambari SSL is enabled
+
+When using -c 
+* Mention -c at the end of the command as shown in the examples
+* Mention the path to the CAcerts file (preferably) or the Ambari certs file (if selfsigned) to trust the https connectivity to Ambari.
+* If either paths are not available, you may use -c without any path.
+
 If not specified, default value for -t : localhost
 
 If not specified, default value for -p : 8080(when SSL disabled) and 8443(when SSL enabled)
