@@ -17,7 +17,7 @@ Example: Trigger Service Check for only for HIVE, HDFS, and KNOX when ssl is ena
 sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox -c
 
 Example: Trigger Service Check for only for HIVE, HDFS, and KNOX when ssl is enabled and you want to specify PEM file
-sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox -c /path/to/pem/file
+sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox -c /path/to/cert/file
 
 " 1>&2; exit 1;
 }
