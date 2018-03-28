@@ -1,19 +1,33 @@
-usage() { 
+usage() {
 echo "
 This script triggers service checks for components which are not in maintenance mode
-Usage: sh ambari-service-check.sh -u <user> -p <password> -s <all|comma-separated list> [-t <ambariServerHost>] [-n <ambariServerPort>] [-c <clusterName>] \n
+Usage: sh ambari-service-check.sh -u <user> -p <password> -s <all|comma-separated list> [-t <ambariServerHost>] [-n <ambariServerPort>] [-c <empty | path to cert file>] \n
 If not specified, default value for -t : localhost
-If not specified, default value for -p : 8080
+If not specified, default value for -p : 8080(when SSL disabled) and 8443(when SSL enabled)
+
+Mention -c at the end of the command as shown in the examples
 
 Example: Trigger Service Check for all components which are not in Maintenance Mode
 sh ambari-service-check.sh -u admin -p admin -s all
 
 Example: Trigger Service Check for only for HIVE, HDFS, and KNOX
 sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox
-" 1>&2; exit 1; 
+
+Example: Trigger Service Check for only for HIVE, HDFS, and KNOX when ssl is enabled
+sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox -c
+
+Example: Trigger Service Check for only for HIVE, HDFS, and KNOX when ssl is enabled and you want to specify cert file
+sh ambari-service-check.sh -u admin -p admin -s hive,hdfs,knox -c /path/to/cert/file
+
+" 1>&2; exit 1;
 }
 
-while getopts "u:p:t::n::c::s:" opt; do
+sslEnabled=false;
+result='';
+certPath='';
+sslFlag='';
+
+while getopts "u:p:s:t::n::c" opt; do
     case "${opt}" in
         u)
             ambariUser=${OPTARG}
@@ -26,25 +40,25 @@ while getopts "u:p:t::n::c::s:" opt; do
             if [ $ambariPassword = "" ]; then
                   usage
             fi
-	    ;;
+	    	;;
         t)
             ambariHost=${OPTARG}
-	    ;;
+	    	;;
         n)
             ambariPort=${OPTARG}
-            ;;
-	c)
-            clusterName=${OPTARG}
             ;;
         s)
             serviceCheck=`echo ${OPTARG} | tr [a-z] [A-Z]`
             if [ -z "$serviceCheck" ]; then
-		usage
+				usage
             fi
             ;;
+		c)
+	    	sslEnabled=true;
+	    	;;
 
         *)
-	    echo "Invalid option specified."
+	    	echo "Invalid option specified."
             usage
             ;;
     esac
@@ -52,15 +66,39 @@ done
 shift $((OPTIND-1))
 
 # Set Default Values
+if $sslEnabled; then
+	certPath=$1
+    if [ -z "$certPath" ]; then
+        sslFlag=" -k "
+    else
+        sslFlag=" --cacert $certPath ";
+    fi
+fi
 
 if [ -z "$ambariHost" ]; then
-	ambariHost="localhost"
+	ambariHost=`hostname`
 fi
-if [ -z "$ambariPort" ]; then
-	ambariPort="8080"
+
+if $sslEnabled; then
+	if [ -z "$ambariPort" ]; then
+		ambariPort="8443"
+	fi
+	ambariURL="https://$ambariHost:$ambariPort";
+else
+	if [ -z "$ambariPort" ]; then
+        	ambariPort="8080"
+	fi
+	ambariURL="http://$ambariHost:$ambariPort";
 fi
+
 if [ -z "$clusterName" ]; then
-	clusterName=`curl -s -u $ambariUser:$ambariPassword "http://$ambariHost:$ambariPort/api/v1/clusters"  | python -mjson.tool | perl -ne '/"cluster_name":.*?"(.*?)"/ && print "$1\n"'`;
+	result=`curl $sslFlag  -s -u $ambariUser:$ambariPassword "$ambariURL/api/v1/clusters"`;
+	if [ -z "$result" ] ; then
+		echo "Error: The following command did not yield results."
+		echo "curl $sslFlag -s -u $ambariUser:$ambariPassword \"$ambariURL/api/v1/clusters\""
+		exit;
+	fi
+	clusterName=`curl $sslFlag  -s -u $ambariUser:$ambariPassword "$ambariURL/api/v1/clusters" | python -mjson.tool | perl -ne '/"cluster_name":.*?"(.*?)"/ && print "$1\n"'`;
 fi
 
 
@@ -68,7 +106,7 @@ fi
 #Prepare list of services for which checks should be triggered
 
 if [ "$serviceCheck" == "ALL" ] ; then
-	aliveServices=`curl -s -u $ambariUser:$ambariPassword "http://$ambariHost:$ambariPort/api/v1/clusters/$clusterName/services?fields=ServiceInfo/service_name&ServiceInfo/maintenance_state=OFF" | python -mjson.tool | perl -ne '/"service_name":.*?"(.*?)"/ && print "$1\n"'`
+	aliveServices=`curl $sslFlag -s -u $ambariUser:$ambariPassword "$ambariURL/api/v1/clusters/$clusterName/services?fields=ServiceInfo/service_name&ServiceInfo/maintenance_state=OFF" | python -mjson.tool | perl -ne '/"service_name":.*?"(.*?)"/ && print "$1\n"'`
 
 else
 	IFS=","
@@ -87,7 +125,7 @@ userChoice="Y"
         	postBody="{\"RequestInfo\":{\"context\":\"$service Service Check\",\"command\":\"${service}_QUORUM_SERVICE_CHECK\"},\"Requests/resource_filters\":[{\"service_name\":\"$service\"}]}"
 
 	elif [ "$service" == "KERBEROS" ]; then
-        	existingCredentials=`curl -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X GET  "http://$ambariHost:$ambariPort/api/v1/clusters/$clusterName/credentials/kdc.admin.credential" | python -mjson.tool | grep status`
+        	existingCredentials=`curl $sslFlag -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X GET  "$ambariURL/api/v1/clusters/$clusterName/credentials/kdc.admin.credential" | python -mjson.tool | grep status`
 		if [ ! -z "$existingCredentials" ]; then
         		echo "KERBEROS service check requires KDC admin principal and password."
 			read -p "Press 'y' to perform KERBEROS service check, To skip, press 'n'   : " userChoice
@@ -95,15 +133,15 @@ userChoice="Y"
 				read -p "Enter Kerberos Admin Principal:" princ
         			read -sp "Enter Kerberos Admin password:" krbpwd
         			kerberosPost="{\"Credential\" : { \"principal\" : \"$princ\", \"key\" : \"$krbpwd\", \"type\" : \"temporary\"} }"
-        			curl -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$kerberosPost"  "http://$ambariHost:$ambariPort/api/v1/clusters/$clusterName/credentials/kdc.admin.credential"
+        			curl $sslFlag -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$kerberosPost"  "$ambariURL/api/v1/clusters/$clusterName/credentials/kdc.admin.credential"
 			fi
         fi
-	    
+
 	    postBody="{\"RequestInfo\":{\"context\":\"$service Service Check\",\"command\":\"${service}_SERVICE_CHECK\"},\"Requests/resource_filters\":[{\"service_name\":\"$service\"}]}"
-		
+
 		if [ "$userChoice" == "Y" -o "$userChoice" == "y" ] ; then
 			 echo "\nInitiating service check for $service\n"
-    			curl -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$postBody"  "http://$ambariHost:$ambariPort/api/v1/clusters/$clusterName/requests"
+    			curl $sslFlag -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$postBody"  "$ambariURL/api/v1/clusters/$clusterName/requests"
 		fi
 	else
         	postBody="{\"RequestInfo\":{\"context\":\"$service Service Check\",\"command\":\"${service}_SERVICE_CHECK\"},\"Requests/resource_filters\":[{\"service_name\":\"$service\"}]}"
@@ -111,7 +149,7 @@ userChoice="Y"
 
     if [ "$service" != "KERBEROS" ] ; then
     	echo "Initiating service check for $service"
-    	curl -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$postBody"  "http://$ambariHost:$ambariPort/api/v1/clusters/$clusterName/requests"
+    	curl $sslFlag -s -u $ambariUser:$ambariPassword -H "X-Requested-By:X-Requested-By" -X POST --data "$postBody"  "$ambariURL/api/v1/clusters/$clusterName/requests"
     fi
 
 done;
