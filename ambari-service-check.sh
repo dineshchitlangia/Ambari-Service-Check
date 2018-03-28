@@ -66,7 +66,7 @@ done
 shift $((OPTIND-1))
 
 # Set Default Values
-if [ sslEnabled ]; then
+if $sslEnabled; then
 	certPath=$1
     if [ -z "$certPath" ]; then
         sslFlag=" -k "
