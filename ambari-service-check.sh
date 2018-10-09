@@ -3,7 +3,7 @@ echo "
 This script triggers service checks for components which are not in maintenance mode
 Usage: sh ambari-service-check.sh -u <user> -p <password> -s <all|comma-separated list> [-t <ambariServerHost>] [-n <ambariServerPort>] [-c <empty | path to cert file>] \n
 If not specified, default value for -t : localhost
-If not specified, default value for -p : 8080(when SSL disabled) and 8443(when SSL enabled)
+If not specified, default value for -n : 8080(when SSL disabled) and 8443(when SSL enabled)
 
 Mention -c at the end of the command as shown in the examples
 
@@ -26,6 +26,11 @@ sslEnabled=false;
 result='';
 certPath='';
 sslFlag='';
+
+if [ "$#" -lt 1 ]; then
+  usage
+  exit 1
+fi
 
 while getopts "u:p:s:t::n::c" opt; do
     case "${opt}" in
