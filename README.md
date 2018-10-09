@@ -1,5 +1,4 @@
-# scripts
-## ambari-service-check.sh
+# ambari-service-check.sh
 
 This script triggers service checks for components which are not in maintenance mode.
 Once service checks are triggered, you can monitor their progress from Ambari UI.
@@ -21,7 +20,7 @@ When using -c
 
 If not specified, default value for -t : localhost
 
-If not specified, default value for -p : 8080(when SSL disabled) and 8443(when SSL enabled)
+If not specified, default value for -n : 8080(when SSL disabled) and 8443(when SSL enabled)
 
 
 For KERBEROS service check, script will prompt for an option to skip service check.
